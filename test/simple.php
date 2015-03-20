@@ -16,21 +16,24 @@ $config =  array(
         'test4'=>array(
             'client_id'=> '2e9db5d10540451a8e8cabc5434b0300',
             'client_secret'=>'bf951e35f27845c5989e92d6748bc084',
-            'redirect_uri'=>'http://www.uostapb.bget.ru/application/index/reg',
+            'redirect_uri'=>'http://www.uostapb.bget.ru/application/index/gettokken',
             'scope'=>array('basic')
         ),
 
     )
 );
 
-/**
- *
- */
+
+
 $user = new \AutorizInst\User("dimajolkin","af160035109a");
 
 $aut = new Autoriz( $config['app']['test4'] );
 $aut->setUser($user);
-
 $res = $aut->autorize();
-var_dump($res);
+if($res){
+    $tokken = trim($res);
+
+
+
+}
 

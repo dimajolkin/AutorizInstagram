@@ -23,6 +23,8 @@ class Autoriz {
 
     private  $curl;
     private $user;
+    private $token;
+
 
     function __construct($config)
     {

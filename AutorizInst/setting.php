@@ -13,7 +13,12 @@ return array(
         );
         $url_form = 'https://instagram.com/accounts/login/?force_classic_login=&next='.urlencode($t);
         return $url_form;
-    }
-
+    },
+    'url_assets'=> function($client_id, $redirect_uri, $scope = nul ){
+        return sprintf('https://instagram.com/oauth/authorize/?client_id=%s&redirect_uri=%s&response_type=code',
+            urlencode($client_id),
+            urlencode($redirect_uri)
+        );
+    },
 
 );

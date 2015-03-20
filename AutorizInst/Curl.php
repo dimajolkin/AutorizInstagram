@@ -18,6 +18,8 @@ class Curl {
     private $post;
     private $param;
     private $message;
+    private $header;
+    private $scope;
 
     /**
      * @return mixed
@@ -58,25 +60,24 @@ class Curl {
         //Берём параметры приложения
         $this->redirect_url = $config['redirect_uri'];
         $this->client_id = $config['client_id'];
+        $this->scope = $config['scope'];
 
 
         if(function_exists("curl_init")){
             $this->ch = curl_init();
         } else throw new \Exception("Curl Не подключен!");
 
-        $header[0] = "Accept: text/xml,application/xml,application/xhtml+xml,";
-        $header[0] .= "text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5";
-        $header[] = "Cache-Control: max-age=0";
-        $header[] = "Connection: keep-alive";
-        $header[] = "Keep-Alive: 300";
-        $header[] = "Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7";
-        $header[] = "Accept-Language: ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3";
-        $header[] = "Pragma: "; // browsers keep this blank.
-        $header[] = "Content-Type:application/x-www-form-urlencoded";
-        $header[] = "Origin:https://instagram.com";
-//        $header[] = "Referer:
-//        https://instagram.com/accounts/login/?force_classic_login=&next=
-//        /oauth/authorize/%3Fclient_id%3D467311be2dc34185bbde5de4cbd10ead%26redirect_uri%3Dhttp%253A%252F%252Fwww.uostapb.bget.ru%252Fapplication%252Findex%252Freg%26response_type%3Dcode";
+        $this->header[0] = "Accept: text/xml,application/xml,application/xhtml+xml,";
+        $this->header[0].= "text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5";
+        $this->header[]  = "Cache-Control: max-age=0";
+        $this->header[]  = "Connection: keep-alive";
+        $this->header[]  = "Keep-Alive: 300";
+        $this->header[]  = "Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7";
+        $this->header[]  = "Accept-Language: ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3";
+        $this->header[]  = "Pragma: "; // browsers keep this blank.
+        $this->header[]  = "Content-Type:application/x-www-form-urlencoded";
+        $this->header[]  = "Origin:https://instagram.com";
+
 
         curl_setopt($this->ch, CURLOPT_CONNECTTIMEOUT, 30);
 
@@ -91,10 +92,10 @@ class Curl {
         if(isset($this->param['url_form'])){
             $result = $this->param['url_form'];
             $url = $result($this->client_id,$this->redirect_url);
-            $header[] = 'Referer:'.$url;
+            $this->header[] = 'Referer:'.$url;
         } else throw new \Exception("");
 
-        curl_setopt($this->ch, CURLOPT_HTTPHEADER, $header);
+        curl_setopt($this->ch, CURLOPT_HTTPHEADER, $this->header);
 
     }
 
@@ -111,8 +112,11 @@ class Curl {
         curl_setopt($this->ch, CURLOPT_COOKIEFILE, $tmpfname);
     }
 
+
     public function run()
     {
+
+
         //Step 1
         //Ссылка на форму авторизации
         $func = $this->param['url'];
@@ -122,8 +126,10 @@ class Curl {
         $func = $this->param['url_form'];
         $url_form = $func($this->client_id,$this->redirect_url);
 
+
         curl_setopt($this->ch, CURLOPT_URL, $url);
         $html_autoriz =  curl_exec(  $this->ch );
+
 
         $this->post['csrfmiddlewaretoken'] = '';
         //Теперь надо вытащить кодовое слово со страницы
@@ -141,8 +147,6 @@ class Curl {
         foreach($list as $elem){
             $this->post['csrfmiddlewaretoken'] = $elem->attr['value'];
         }
-
-        $assets_tokken = $this->post['csrfmiddlewaretoken'];
 
         /**
          * Шаг второй. после подготовки данных и получения начальных куков
@@ -163,6 +167,8 @@ class Curl {
 
 
         $html_autoriz  =  curl_exec($this->ch);
+
+        //  var_dump($html_autoriz);
 
         $html = str_get_html($html_autoriz);
         //Осуществляем поиск сообщения об ошибке
@@ -187,27 +193,37 @@ class Curl {
                 $message = false;
             }
         }
+
+
+
         if(!$message){
             /**
              * Выполняем подтвержение пользоваться нашимы регистарционными данными
              */
 
-//todo-me Дописываем вот это место. Надо отправить подтвержение на полуение доступа
+            $func = $this->param['url_assets'];
+            $url = $func($this->client_id,$this->redirect_url, $this->scope);
+
+            $this->header[ count($this->header)-1 ] = 'Referer:'.$url;
+
+            curl_setopt($this->ch, CURLOPT_HTTPHEADER, $this->header);
             curl_setopt($this->ch, CURLOPT_URL, $url );
 
-            //проверка на подтверждение доступа к данным
-            $post_assets = array();
-            $post_assets['csrfmiddlewaretoken'] = $assets_tokken; //http_build_query(array('allow'=>'Authorize'));
-            $post_assets['allow'] = 'Authorize';
 
+            $this->post = array();
+            $list = $html->find('form input[name=\'csrfmiddlewaretoken\']');
+            foreach($list as $elem){
+                $this->post['csrfmiddlewaretoken'] = $elem->attr['value'];
+            }
+
+            $this->post['allow'] = 'Authorize';
+            $post_assets = http_build_query($this->post);
 
             if($post_assets)
             {
                 curl_setopt($this->ch, CURLOPT_POST, $post_assets ? 0 :1);
-                curl_setopt($this->ch, CURLOPT_POSTFIELDS,$post_assets);
+                curl_setopt($this->ch, CURLOPT_POSTFIELDS, $post_assets);
             }
-
-            //var_dump($post_assets);
 
             $html = curl_exec($this->ch);
 
@@ -223,31 +239,6 @@ class Curl {
 
     }
 
-
-    private function is_error($html_autoriz)
-    {
-        //Анализируем полученный документ
-        $html = str_get_html($html_autoriz);
-        $list = $html->find('form ul[class=\'errorlist\'] li');
-        $message = false;
-        foreach($list as $elem){
-            $message = $elem;
-        }
-        if(!$message) self::setMessage($message);
-        return ($message)?true:false;
-    }
-
-    /**
-     *
-     */
-    private function is_assets($htnl)
-    {
-
-    }
-    private function enter_assets()
-    {
-
-    }
 
 
 
