@@ -25,7 +25,7 @@ $config =  array(
 
 
 
-$user = new \AutorizInst\User("dimajolkin","af160035109a");
+$user = new \AutorizInst\User("dimajolkin","11111");
 
 $aut = new Autoriz( $config['app']['test4'] );
 $aut->setUser($user);
